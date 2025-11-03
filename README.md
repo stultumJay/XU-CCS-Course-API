@@ -4,6 +4,8 @@ This is a simple RESTful API built using **Flask** and **SQLite** that lets you 
 
 ---
 
+
+
 ## 🚀 Setup Instructions
 
 ### 1\. Clone the Repository
@@ -202,4 +204,5 @@ curl -X PATCH -H "Content-Type: application/json" -d "{\"units\":5}" [http://127
 curl -X DELETE [http://127.0.0.1:5000/courses/1](http://127.0.0.1:5000/courses/1)
 ```
 
-© 2025 Course Management API — Gerfel Jay Jimenez
+<p align="center">© 2025 Course Management API — Gerfel Jay Jimenez</p>
+

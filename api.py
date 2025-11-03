@@ -1,34 +1,12 @@
-import os
-from dotenv import load_dotenv
-from pathlib import Path
 from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
-
-env_path = Path(__file__).parent / '.env'
-load_dotenv(dotenv_path=env_path)
-
-print("Loaded SECRET_API_KEY:", os.environ.get('SECRET_API_KEY'))
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///courses.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-API_KEY = os.environ.get('SECRET_API_KEY', 'dev_key')
-if API_KEY == 'dev_key':
-    print("WARNING: Using fallback API key 'dev_key'. Ensure SECRET_API_KEY is set correctly in .env.")
-app.config['SECRET_API_KEY'] = API_KEY
-
 db = SQLAlchemy(app)
-
-def api_key_required(f):
-    def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('X-API-KEY')
-        if api_key and api_key == app.config['SECRET_API_KEY']:
-            return f(*args, **kwargs)
-        return make_response(jsonify({'message': 'Authorization Required: Invalid or missing X-API-KEY header.'}), 401)
-    decorated_function.__name__ = f.__name__
-    return decorated_function
 
 class CourseModel(db.Model):
     __tablename__ = 'courses'
@@ -55,15 +33,113 @@ class CourseModel(db.Model):
 @app.route('/', methods=['GET'])
 def documentation():
     docs = {
-        "title": "Course API Documentation (v1)",
-        "endpoints": [
-            {"route": "/", "method": "GET", "security": "Public"},
-            {"route": "/courses", "method": "GET", "security": "Public"},
-            {"route": "/courses/<int:id>", "method": "GET", "security": "Public"},
-            {"route": "/courses", "method": "POST", "security": "Protected"},
-            {"route": "/courses/<int:id>", "method": "PATCH", "security": "Protected"},
-            {"route": "/courses/<int:id>", "method": "DELETE", "security": "Protected"}
-        ]
+        "API Title": "Course Management API (v1)",
+        "Base URL": "http://127.0.0.1:5000/",
+        "Description": "A RESTful API for managing course data, including creation, retrieval, updates, and deletion of course records.",
+        "Endpoints": [
+            {
+                "Endpoint": "List All Courses",
+                "Method": "GET",
+                "URL": "http://127.0.0.1:5000/courses",
+                "Parameters": {
+                    "None": "Returns all courses in the database."
+                },
+                "Example": "GET http://127.0.0.1:5000/courses"
+            },
+            {
+                "Endpoint": "Retrieve Course by ID",
+                "Method": "GET",
+                "URL": "http://127.0.0.1:5000/courses/<int:id>",
+                "Parameters": {
+                    "id": "Integer – The ID of the course to retrieve."
+                },
+                "Example": "GET http://127.0.0.1:5000/courses/1"
+            },
+            {
+                "Endpoint": "Create a New Course",
+                "Method": "POST",
+                "URL": "http://127.0.0.1:5000/courses",
+                "Parameters": {
+                    "course_code": "String – Unique course code (required)",
+                    "title": "String – Course title (required)",
+                    "instructor": "String – Instructor name (required)",
+                    "units": "Float – Number of units (required)",
+                    "description": "String – Optional course description",
+                    "prerequisite": "String – Optional prerequisite information"
+                },
+                "Example Request": {
+                    "course_code": "CS101",
+                    "title": "Introduction to Computer Science",
+                    "instructor": "Dr. Smith",
+                    "units": 3,
+                    "description": "Basic programming and algorithms.",
+                    "prerequisite": "None"
+                },
+                "Example Response": {
+                    "message": "Course created successfully",
+                    "course": {
+                        "id": 1,
+                        "course_code": "CS101",
+                        "title": "Introduction to Computer Science",
+                        "instructor": "Dr. Smith",
+                        "units": 3,
+                        "description": "Basic programming and algorithms.",
+                        "prerequisite": "None"
+                    }
+                }
+            },
+            {
+                "Endpoint": "Update Course",
+                "Method": "PATCH",
+                "URL": "http://127.0.0.1:5000/courses/<int:id>",
+                "Parameters": {
+                    "id": "Integer – The ID of the course to update.",
+                    "course_code": "String – Updated course code (optional)",
+                    "title": "String – Updated title (optional)",
+                    "instructor": "String – Updated instructor (optional)",
+                    "units": "Float – Updated number of units (optional)",
+                    "description": "String – Updated course description (optional)",
+                    "prerequisite": "String – Updated prerequisite (optional)"
+                },
+                "Example Request": {
+                    "title": "Intro to Computing",
+                    "units": 4
+                },
+                "Example Response": {
+                    "message": "Course updated successfully",
+                    "course": {
+                        "id": 1,
+                        "course_code": "CS101",
+                        "title": "Intro to Computing",
+                        "instructor": "Dr. Smith",
+                        "units": 4,
+                        "description": "Basic programming and algorithms.",
+                        "prerequisite": "None"
+                    }
+                }
+            },
+            {
+                "Endpoint": "Delete Course",
+                "Method": "DELETE",
+                "URL": "http://127.0.0.1:5000/courses/<int:id>",
+                "Parameters": {
+                    "id": "Integer – The ID of the course to delete."
+                },
+                "Example": "DELETE http://127.0.0.1:5000/courses/1",
+                "Example Response": {
+                    "message": "Course 1 deleted successfully"
+                }
+            }
+        ],
+        "Response Format": {
+            "id": "Unique course ID",
+            "course_code": "Course code (string)",
+            "title": "Course title (string)",
+            "instructor": "Instructor name (string)",
+            "units": "Number of units (float)",
+            "description": "Course description (string)",
+            "prerequisite": "Course prerequisite (string)"
+        }
     }
     return jsonify(docs)
 
@@ -80,7 +156,6 @@ def get_course(course_id):
     return jsonify(course.to_dict())
 
 @app.route('/courses', methods=['POST'])
-@api_key_required
 def create_course():
     data = request.get_json(silent=True)
     if data is None:
@@ -115,13 +190,15 @@ def create_course():
         return make_response(jsonify({'message': f'Internal Server Error: {str(e)}'}), 500)
 
 @app.route('/courses/<int:course_id>', methods=['PATCH'])
-@api_key_required
 def update_course(course_id):
     course = CourseModel.query.get(course_id)
     if not course:
         return make_response(jsonify({'message': f'Course ID {course_id} not found.'}), 404)
 
     data = request.get_json()
+    if not data:
+        return make_response(jsonify({'message': 'Request body must be valid JSON.'}), 400)
+
     if 'course_code' in data: course.course_code = data['course_code']
     if 'title' in data: course.title = data['title']
     if 'instructor' in data: course.instructor = data['instructor']
@@ -144,7 +221,6 @@ def update_course(course_id):
         return make_response(jsonify({'message': f'Internal Server Error: {str(e)}'}), 500)
 
 @app.route('/courses/<int:course_id>', methods=['DELETE'])
-@api_key_required
 def delete_course(course_id):
     course = CourseModel.query.get(course_id)
     if not course:
@@ -154,5 +230,9 @@ def delete_course(course_id):
     db.session.commit()
     return make_response(jsonify({'message': f'Course {course_id} deleted successfully'}), 204)
 
+@app.before_first_request
+def create_tables():
+    db.create_all()
+
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)

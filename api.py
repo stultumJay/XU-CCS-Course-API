@@ -30,6 +30,7 @@ class CourseModel(db.Model):
             'prerequisite': self.prerequisite or "No requirements"
         }
 
+# Landing Page of the API
 @app.route('/', methods=['GET'])
 def documentation():
     docs = {
